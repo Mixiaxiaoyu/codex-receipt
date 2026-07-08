@@ -1,33 +1,59 @@
-# CODEX RECEIPT 使用说明
+# CODEX RECEIPT
 
-CODEX RECEIPT 是一个本地 Codex skill，用来读取允许访问的本机 Codex 历史记录，统计你的使用行为，生成一张可以分享的“Codex 小票”。
+CODEX RECEIPT 是一个本地 Codex skill，用来读取你本机可访问的 Codex 历史记录，生成一张可分享的“Codex 使用小票”。
 
-它不是官方账单，也不是 OpenAI 的计费记录。它生成的是一份本地个人总结：包含使用统计、工作节奏、能力倾向、Codex Working Persona，以及一张带像素风人格插图的长图小票。
+它会统计你的会话、turn、工具调用、命令运行、文件修改、token 覆盖情况等信息，生成一个非诊断性质的 Codex Working Persona，并为本次结果生成一张 AI 像素人格插图，最后渲染成一张长图小票。
 
-## 这个 skill 是干什么的
+它不是官方账单，也不是 OpenAI 计费记录。它只基于本机可见日志做个人总结。
 
-CODEX RECEIPT 会把本地 Codex 使用痕迹整理成一个视觉化纪念票据：
+## 最快用法
 
-- 扫描本机 Codex 历史数据。
-- 聚合会话数、turn 数、工具调用、命令运行、文件修改、活跃天数等统计。
-- 在日志有精确 token 字段时汇总精确 token。
-- 在日志缺少精确 token 或只提供累计字段时，标注为估算或覆盖率不足。
-- 根据使用行为生成非医学、非人格诊断性质的 Codex Working Persona。
-- 为本次结果生成一张 AI 像素人格插图。
-- 使用固定的 receipt texture skin 渲染最终小票，而不是用 AI 直接生成整张小票。
-- 输出公开版和私有版报告，公开版会避免暴露原始 prompt、路径、邮箱、API key 等敏感信息。
+在 Codex 里直接调用这个 skill 即可，例如：
 
-## 它能生成什么
+```text
+用 codex-receipt 生成我的小票
+```
 
-一次正常运行会生成一个输出目录，常见文件包括：
+或：
+
+```text
+跑一下 Codex Receipt
+```
+
+默认行为：
+
+- 直接开始完整生成流程，不先问问题。
+- 默认扫描全部可见历史记录。
+- 默认输出英文版。
+- 自动生成本次专属 AI 像素人格插图。
+- 自动渲染最终小票。
+- 生成完成后返回最终文件路径和必要提醒。
+
+如果要中文版，在请求里加 `@cn`：
+
+```text
+@cn 生成我的 Codex 小票
+```
+
+## 它会生成什么
+
+主要结果在输出目录里，默认是 `output/`。
+
+最重要的文件：
+
+```text
+output/receipt-share-final.png
+```
+
+这是最终分享图。
+
+其他常见文件：
 
 ```text
 output/
   receipt-share-final.png
   receipt-share.png
-  receipt-full-01.png
   receipt.html
-  receipt-full.html
   persona-illustration-raw.png
   persona-illustration-processed.png
   persona-illustration-prompt.txt
@@ -43,74 +69,115 @@ output/
   manifest.json
 ```
 
-最主要给用户看的文件是：
+建议重点看：
 
-- `receipt-share-final.png`：最终分享图。
-- `report-public.html`：公开安全报告。
+- `receipt-share-final.png`：最终小票图。
+- `report-public.html`：适合查看和分享摘要的公开安全报告。
 - `report-private.html`：本地私有报告。
-- `coverage-report.json`：数据覆盖情况。
-- `visual-check-report.json`：视觉渲染和素材使用检查。
+- `coverage-report.json`：本地日志覆盖情况。
+- `visual-check-report.json`：视觉渲染、素材、插图、印章检查。
 
-## 语言模式
+## 英文和中文
 
-默认输出英文版。
+英文是默认版本，不需要额外参数。
 
-如果需要中文版，可以使用 `cn` 或 `@cn`：
+中文有三种方式：
+
+```text
+@cn 生成我的 Codex 小票
+```
 
 ```powershell
 python -m codex_receipt cn --period all --out output-cn
 ```
 
-PowerShell 里如果使用 `@cn`，需要加引号：
+```powershell
+python -m codex_receipt generate --period all --out output-cn --language zh-cn
+```
+
+PowerShell 里如果使用 `@cn` 命令，需要加引号：
 
 ```powershell
 python -m codex_receipt '@cn' --period all --out output-cn
 ```
 
-也可以显式传语言参数：
+## 它能做什么
 
-```powershell
-python -m codex_receipt generate --period all --out output-cn --language zh-cn
-```
+CODEX RECEIPT 可以：
 
-## 推荐用法
+- 扫描本机 Codex 历史记录。
+- 统计使用天数、会话数、turn 数、工具调用、命令运行和文件修改。
+- 汇总可见 token 数据，并标明是否精确。
+- 根据使用行为生成 Codex Working Persona。
+- 生成本次专属 AI 像素人格插图。
+- 使用固定小票皮肤渲染最终长图。
+- 输出公开安全报告和本地私有报告。
+- 支持英文默认版和 `@cn` 中文版。
 
-完整真实运行建议分两步：先准备数据和插图 prompt，再生成插图并渲染。
+它不会：
 
-第一步，准备数据：
+- 查询官方账单。
+- 作为报销、审计或财务凭证。
+- 保证等同于 OpenAI 后端真实 token 消耗。
+- 把原始 prompt、私有路径、邮箱、API key 放进公开输出。
+- 用 AI 直接生成整张小票。
+
+## Token 为什么可能显示为估算
+
+CODEX RECEIPT 只能读取本机可见 Codex 日志。
+
+因此 token 有三种情况：
+
+- 如果日志里有精确 turn-level token 字段，小票会显示精确值。
+- 如果日志里只有累计 token 字段，小票会按可见增量处理，并显示覆盖情况。
+- 如果日志缺少精确 token 字段，小票会显示 `TOKEN EST.`，表示这是估算。
+
+所以小票中的 token 更像“本机可见记录总结”，不是官方账单数字。你的实际使用感受可能比小票更大，常见原因是本地日志不完整、旧 session 被清理、某些 session 没有精确 token 字段，或只能看到累计字段。
+
+## 视觉规则
+
+最终小票是代码渲染，不是 AI 生成整张图。
+
+视觉结构：
+
+- 小票背景来自 `assets/receipt-skin-top.png`、`assets/receipt-skin-mid.png`、`assets/receipt-skin-bottom.png`。
+- `OUTPUT TIME` 印章使用 `assets/stamp-output-time.png`，再叠加动态生成时间。
+- AI 只负责生成人格插图，不负责生成整张小票。
+- 人格插图会被像素化处理后放入固定区域。
+- 原始参考图不会被打包进最终输出。
+
+如果 headless browser 截图失败，程序会使用 PowerShell GDI fallback 渲染，并在 `visual-check-report.json` 里记录。
+
+## 命令行用法
+
+在 Codex 聊天里调用 skill 时，通常不需要手动跑这些命令。下面命令适合开发、调试或高级用户。
+
+准备数据和插图 prompt：
 
 ```powershell
 python -m codex_receipt prepare --period all --out output
 ```
 
-这一步会生成：
+这会生成：
 
 ```text
 output/receipt-data.json
 output/persona-illustration-prompt.txt
 ```
 
-第二步，用 `persona-illustration-prompt.txt` 生成本次专属的 AI 像素插图，并保存为：
+然后用 `persona-illustration-prompt.txt` 生成 AI 插图，并保存为：
 
 ```text
 output/persona-illustration-raw.png
 ```
 
-第三步，渲染最终小票：
+最后渲染小票：
 
 ```powershell
 python -m codex_receipt render --out output --persona-illustration output/persona-illustration-raw.png
 ```
 
-生成完成后，查看：
-
-```text
-output/receipt-share-final.png
-```
-
-## 一步生成
-
-如果已经有一张可用的人格插图，可以直接运行：
+如果已经有插图素材，可以一步渲染：
 
 ```powershell
 python -m codex_receipt generate --period all --out output --persona-illustration output/persona-illustration-raw.png
@@ -122,74 +189,17 @@ python -m codex_receipt generate --period all --out output --persona-illustratio
 python -m codex_receipt cn --period all --out output-cn --persona-illustration output-cn/persona-illustration-raw.png
 ```
 
-## Demo 模式
-
-Demo 模式使用固定演示数据，适合检查视觉效果，不代表真实使用量：
+Demo 模式使用固定演示数据，只适合看视觉效果：
 
 ```powershell
 python -m codex_receipt demo --out output-demo
 ```
 
-如果要看真实效果，不要用旧的 demo 输出目录，建议换一个新的 `--out` 目录，或先重新运行 `prepare` 和 `render`。
+注意：命令行本身不会自动调用图片生成工具。完整 AI 插图版建议在 Codex 聊天里调用 skill，由 agent 按流程生成插图并渲染。
 
-## Token 数据为什么可能不等于官方账单
+## 常用检查
 
-CODEX RECEIPT 读取的是本机可见的 Codex 日志，不是 OpenAI 官方计费系统。
-
-因此 token 有几种情况：
-
-- 如果 session 里有精确 turn-level token 字段，小票会使用精确值。
-- 如果只有累计 token 字段，小票会按可见累计增量处理，并标注覆盖情况。
-- 如果缺少精确 token 字段，只能根据可见活动量估算，并在小票中显示 `TOKEN EST.`。
-- 如果本地日志没有保存某些会话、被清理、被归档到不可访问位置，统计会低于真实使用感受。
-
-所以这个 skill 可以尽量准确地反映本机可见数据，但不能保证等同于官方用量或账单。
-
-## 视觉规则
-
-最终小票不是 AI 生成整张图，而是代码渲染：
-
-- 小票背景使用 `assets/receipt-skin-top.png`、`assets/receipt-skin-mid.png`、`assets/receipt-skin-bottom.png`。
-- `OUTPUT TIME` 印章使用 `assets/stamp-output-time.png`，再叠加动态生成时间。
-- 人格插图由 AI 生成单独素材，再做像素化处理后放入固定插图区域。
-- 原始参考图不会被打包进最终输出。
-- 最终 HTML 会由 headless browser 截图；如果当前机器浏览器截图失败，会使用 PowerShell GDI fallback 渲染，并在 `visual-check-report.json` 里记录。
-
-## 常用命令
-
-```powershell
-python -m codex_receipt prepare --period all --out output
-python -m codex_receipt render --out output --persona-illustration output/persona-illustration-raw.png
-python -m codex_receipt generate --period all --out output --persona-illustration output/persona-illustration-raw.png
-python -m codex_receipt cn --period all --out output-cn --persona-illustration output-cn/persona-illustration-raw.png
-python -m codex_receipt '@cn' --period all --out output-cn --persona-illustration output-cn/persona-illustration-raw.png
-python -m codex_receipt demo --out output-demo
-python -m codex_receipt inspect-coverage
-python -m codex_receipt clear-cache --out output
-python -m codex_receipt reset-identity --out output
-python -m codex_receipt benchmark --out output-benchmark
-```
-
-## 什么时候用它
-
-适合用在这些场景：
-
-- 想生成一张 Codex 使用纪念小票。
-- 想看自己和 Codex 协作的行为统计。
-- 想知道本机历史数据覆盖率如何。
-- 想生成一个可以分享但不暴露敏感原文的总结图。
-- 想生成英文默认版，或用 `@cn` 生成中文版。
-
-不适合用在这些场景：
-
-- 查询官方账单。
-- 作为财务、审计或报销凭证。
-- 精确还原所有 OpenAI 后端 token 消耗。
-- 公开分享包含原始 prompt、私有路径或密钥的内部日志。
-
-## 验证输出
-
-生成后建议查看：
+生成后建议检查：
 
 ```text
 output/visual-check-report.json
@@ -197,22 +207,35 @@ output/coverage-report.json
 output/privacy-report.json
 ```
 
-重点确认：
+重点字段：
 
-- `language` 是否符合预期。
-- `stamp_texture_present` 是否为 `true`。
-- `ai_illustration_supplied` 是否为 `true`。
-- `receipt_share_final_exists` 是否为 `true`。
-- `raw_prompts_in_public_output` 是否为 `false`。
-- token 显示是 `TOKEN` 还是 `TOKEN EST.`。
+- `language`：输出语言。
+- `stamp_texture_present`：是否找到印章素材。
+- `ai_illustration_supplied`：是否使用了本次 AI 插图。
+- `receipt_share_final_exists`：最终分享图是否生成。
+- `raw_prompts_in_public_output`：公开输出是否避免原始 prompt。
+- `token_display_label`：token 是精确值还是估算。
 
-## 开发检查
+## 目录结构
 
-修改代码后可以运行：
+运行 skill 需要保留：
 
-```powershell
-python -m unittest discover -s tests
-python -m compileall codex_receipt tests
+```text
+SKILL.md
+README.MD
+agents/
+assets/
+codex_receipt/
+references/
 ```
 
-如果修改视觉渲染，建议重新生成英文版和中文版各一份，检查 `receipt-share-final.png` 与 `visual-check-report.json`。
+其中：
+
+- `SKILL.md`：给 Codex agent 看的执行说明。
+- `README.MD`：给用户看的使用说明。
+- `agents/`：Codex UI 展示信息。
+- `assets/`：小票皮肤、印章等视觉素材。
+- `codex_receipt/`：核心 Python 代码和渲染逻辑。
+- `references/`：产品规格、视觉规范、验收清单。
+
+`.git/` 是仓库元数据，不影响 skill 运行，但建议保留。

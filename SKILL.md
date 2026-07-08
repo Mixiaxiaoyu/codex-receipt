@@ -38,6 +38,21 @@ The skill may include template skin assets such as `assets/receipt-skin-top.png`
 - User-facing skill runs must include a generated persona illustration by default. Do not hand off a placeholder receipt unless image generation is blocked and the user explicitly accepts a development fallback.
 - English is the default receipt language. If the user includes `@cn` or asks for Chinese output, set `language=zh-cn` for both prepare and render.
 
+## Zero-Input Behavior
+
+When a user triggers this skill with a short request such as "run this skill", "generate my receipt", or "Codex Receipt", start the full production workflow immediately. Do not ask follow-up questions, do not explain the process first, and do not stop after `prepare`.
+
+Use defaults unless the user says otherwise:
+
+- `period=all`
+- `out=output`
+- `language=en`
+- Generate a fresh AI persona illustration for this run.
+- Render the final receipt with that generated illustration.
+- Hand off the final file paths and any real blockers only after generation or failure.
+
+Only pause before rendering when local history access is unavailable, image generation is unavailable, required runtime assets are missing, or the user explicitly asks for a plan, explanation, demo-only run, or no file changes.
+
 ## Workflow
 
 1. Discover allowed Codex history sources.
