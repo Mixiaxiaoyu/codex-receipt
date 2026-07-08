@@ -1,0 +1,13 @@
+﻿{
+  "version": "receipt-html-texture-v1",
+  "source": "blank-paper-texture-derived-from-user-supplied-material-after-content-removal",
+  "target_width": 560,
+  "scaled_height": 2421,
+  "top_height": 260,
+  "mid_height": 220,
+  "bottom_height": 300,
+  "raw_reference_images_embedded": false,
+  "old_text_and_illustration_removed": true,
+  "renderer": "html-css-headless-browser",
+  "adaptive_axis": "vertical-middle-repeat"
+}
