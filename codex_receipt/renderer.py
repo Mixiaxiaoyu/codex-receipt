@@ -32,21 +32,8 @@ def render_outputs(payload: dict[str, Any], out_dir: Path) -> None:
         ],
         check=True,
     )
-    try:
-        render_html_outputs(payload, out_dir)
-    except RuntimeError as exc:
-        warnings = payload.setdefault("performance", {}).setdefault("warnings", [])
-        warnings.append(f"HTML headless screenshot failed; kept PowerShell fallback PNG: {exc}")
-        report_path = out_dir / "visual-check-report.json"
-        if report_path.exists():
-            report = json.loads(report_path.read_text(encoding="utf-8-sig"))
-            report["renderer"] = "powershell-gdi-fallback"
-            report["html_renderer_error"] = str(exc)
-            checks = report.setdefault("checks", {})
-            checks["receipt_html_exists"] = (out_dir / "receipt.html").exists()
-            report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    finally:
-        render_input.unlink(missing_ok=True)
+    render_html_outputs(payload, out_dir)
+    render_input.unlink(missing_ok=True)
 
 
 def write_character_svg(path: Path, payload: dict[str, Any] | None = None) -> None:

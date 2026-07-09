@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex Receipt"
-  short_description: "Generate a private Codex persona receipt with AI pixel art."
-  default_prompt: "Use $codex-receipt to analyze my local Codex history, generate the persona illustration, and render a shareable working-persona receipt."
+  short_description: "Generate a private Codex usage persona receipt."
+  default_prompt: "Use $codex-receipt to analyze my local Codex history and generate a shareable working-persona receipt."

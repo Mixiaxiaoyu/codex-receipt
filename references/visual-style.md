@@ -61,7 +61,6 @@ The persona illustration is a separate AI asset:
 - processed with transparent paper pixels so ink prints directly onto the receipt skin
 - placed into the fixed illustration slot
 - never responsible for drawing the whole receipt
-- generated as part of the normal user-facing skill run before final render; placeholder art is only for development/demo fallback
 
 Style target:
 
@@ -88,4 +87,3 @@ Style target:
 - skin manifest says old content was removed and raw references were not embedded
 - original reference images not embedded
 - full receipt image generation disabled
-- user-facing final runs record `ai_illustration_supplied: true`

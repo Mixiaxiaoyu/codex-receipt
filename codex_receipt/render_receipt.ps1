@@ -1,4 +1,4 @@
-﻿param(
+param(
   [Parameter(Mandatory=$true)][string]$InputJson,
   [Parameter(Mandatory=$true)][string]$OutputDir
 )
@@ -21,7 +21,6 @@ $script:AssetDir = Join-Path (Split-Path -Parent (Split-Path -Parent $PSCommandP
 $script:TopSkinPath = Join-Path $script:AssetDir "receipt-skin-top.png"
 $script:MidSkinPath = Join-Path $script:AssetDir "receipt-skin-mid.png"
 $script:BottomSkinPath = Join-Path $script:AssetDir "receipt-skin-bottom.png"
-$script:StampPath = Join-Path $script:AssetDir "stamp-output-time.png"
 $script:IllustrationPath = $null
 if (($json.PSObject.Properties.Name -contains "persona_illustration_asset") -and $json.persona_illustration_asset) {
   $candidate = [string]$json.persona_illustration_asset
@@ -56,71 +55,7 @@ function Save-Png($bmp, $g, [string]$path) {
 
 function New-Font([float]$size, [string]$style = "Regular") {
   $fontStyle = [System.Drawing.FontStyle]::$style
-  if (Is-Cn) {
-    return [System.Drawing.Font]::new("Microsoft YaHei", $size, $fontStyle, [System.Drawing.GraphicsUnit]::Pixel)
-  }
   return [System.Drawing.Font]::new("Consolas", $size, $fontStyle, [System.Drawing.GraphicsUnit]::Pixel)
-}
-
-function Is-Cn() {
-  return (($json.PSObject.Properties.Name -contains "language") -and ([string]$json.language -in @("zh","zh-cn","cn","@cn")))
-}
-
-function Label([string]$text) {
-  if (-not (Is-Cn)) { return $text }
-  switch ($text) {
-    "THREADS" { return "线程" }
-    "TURNS" { return "回合" }
-    "TOOLS" { return "工具调用" }
-    "COMMANDS" { return "命令" }
-    "TOKEN" { return "令牌" }
-    "TOKEN EST." { return "令牌估算" }
-    "COVERAGE" { return "覆盖率" }
-    "EXPLORATION" { return "探索" }
-    "EXECUTION" { return "执行" }
-    "AUTOMATION" { return "自动化" }
-    "ENDURANCE" { return "耐力" }
-    "ITERATION" { return "迭代" }
-    "SYSTEMS" { return "系统" }
-    "CONTROL" { return "控制" }
-    "VERIFICATION" { return "验证" }
-    "COMMAND RUNS" { return "命令运行" }
-    "TOOL CALLS" { return "工具调用" }
-    "RESEARCH & PATTERNING" { return "研究与模式" }
-    "WRITING / DOCUMENTATION" { return "写作与文档" }
-    "MAINTENANCE / CLEANUP" { return "维护清理" }
-    "DESIGN / STRUCTURE" { return "设计结构" }
-    "CREATIVE DIRECTION" { return "创意方向" }
-    "DEBUG / PROBLEM SOLVING" { return "调试解题" }
-    "SOURCE" { return "来源等级" }
-    "TOKEN COV" { return "令牌覆盖" }
-    "PUBLIC SAFE" { return "公开安全" }
-    "CONFIDENCE" { return "置信度" }
-    "OUTPUT TIME" { return "输出时间" }
-    "ORDER" { return "编号" }
-    "PERIOD" { return "周期" }
-    "TOTAL" { return "合计" }
-    "LOCAL RECORD" { return "本地记录" }
-    default { return $text }
-  }
-}
-
-function Value-Text([string]$text) {
-  if (-not (Is-Cn)) { return $text }
-  switch ($text) {
-    "HIGH" { return "高" }
-    "MEDIUM" { return "中" }
-    "LOW" { return "低" }
-    "Discovery Finisher" { return "探索收束者" }
-    "Workflow Mechanic" { return "流程机械师" }
-    "Pattern Diver" { return "模式潜航者" }
-    "Workflow Explorer" { return "流程探索者" }
-    "Structure Keeper" { return "结构守护者" }
-    "Automation Handler" { return "自动化处理者" }
-    "Quality Hunter" { return "质量猎手" }
-    "Loop Survivor" { return "循环幸存者" }
-    default { return $text }
-  }
 }
 
 function Draw-Text($g, [string]$text, [float]$x, [float]$y, [float]$size, [string]$color = "#111111", [string]$style = "Regular") {
@@ -421,11 +356,7 @@ function Build-PersonaIllustrations() {
   $raw = Join-Path $OutputDir "persona-illustration-raw.png"
   $processed = Join-Path $OutputDir "persona-illustration-processed.png"
   if ($script:IllustrationPath) {
-    $resolvedRaw = $null
-    if (Test-Path -LiteralPath $raw) { $resolvedRaw = (Resolve-Path -LiteralPath $raw).Path }
-    if ($resolvedRaw -ne $script:IllustrationPath) {
-      Copy-Item -LiteralPath $script:IllustrationPath -Destination $raw -Force
-    }
+    Copy-Item -LiteralPath $script:IllustrationPath -Destination $raw -Force
     Process-ExternalIllustration $script:IllustrationPath $processed
   } else {
     Draw-ProceduralPixelScene $raw $false
@@ -451,19 +382,10 @@ function Draw-ProcessedIllustration($g, [float]$x, [float]$y, [float]$w, [float]
 }
 
 function Draw-OutputTicket($g, [float]$x, [float]$y) {
-  if (Test-Path -LiteralPath $script:StampPath) {
-    $stamp = [System.Drawing.Image]::FromFile($script:StampPath)
-    try {
-      $g.DrawImage($stamp, $x, $y, 190, 86)
-    } finally {
-      $stamp.Dispose()
-    }
-  } else {
-    Stroke-Rect $g $x $y 190 86 $script:Red 3
-    Draw-Centered $g "OUTPUT TIME" ($x + 8) ($y + 10) 174 18 $script:Red "Bold"
-    Draw-DotRule $g ($x + 27) ($y + 36) 136
-  }
-  Draw-Centered $g ([string]$json.generated_at_local) ($x + 8) ($y + 57) 174 15 $script:Red "Bold"
+  Stroke-Rect $g $x $y 190 78 $script:Red 3
+  Draw-Centered $g "OUTPUT TIME" ($x + 8) ($y + 10) 174 18 $script:Red "Bold"
+  Draw-DotRule $g ($x + 27) ($y + 36) 136
+  Draw-Centered $g ([string]$json.generated_at_local) ($x + 8) ($y + 50) 174 15 $script:Red "Bold"
 }
 
 function Compute-Layout() {
@@ -493,70 +415,61 @@ function Draw-Receipt([string]$path, [bool]$full = $false) {
   $g.SetClip($clip)
   $x0 = $px + 40
   Draw-Centered $g "CODEX RECEIPT" $px ($py + 42) $pw 44 $script:Ink "Bold"
-  Draw-Centered $g $(if (Is-Cn) { "本地记录" } else { "LOCAL RECORD" }) $px ($py + 105) $pw 18
-  Draw-Centered $g $(if (Is-Cn) { "非官方账单" } else { "NOT OFFICIAL BILLING" }) $px ($py + 128) $pw 18
+  Draw-Centered $g "LOCAL RECORD" $px ($py + 105) $pw 18
+  Draw-Centered $g "NOT OFFICIAL BILLING" $px ($py + 128) $pw 18
   Draw-DotRule $g ($px + 54) ($py + 172) ($pw - 108)
-  Draw-Centered $g $(if (Is-Cn) { "工作人格样本" } else { "WORKING PERSONA SPECIMEN" }) $px ($py + 218) $pw 19 $script:Ink "Regular"
-  $personaTitle = [string]$json.persona.title
-  if ((Is-Cn) -and ($json.persona.PSObject.Properties.Name -contains "title_cn")) { $personaTitle = [string]$json.persona.title_cn }
-  $titleLines = Title-Lines $personaTitle
+  Draw-Centered $g "WORKING PERSONA SPECIMEN" $px ($py + 218) $pw 19 $script:Ink "Regular"
+  $titleLines = Title-Lines ([string]$json.persona.title)
   Draw-Centered $g $titleLines[0] ($px + 20) ($py + 258) ($pw - 40) 39 $script:Ink "Bold"
   Draw-Centered $g $titleLines[1] ($px + 20) ($py + 304) ($pw - 40) 39 $script:Ink "Bold"
-  Draw-Centered $g (Value-Text ([string]$json.persona.secondary)) $px ($py + 354) $pw 21
-  Draw-Text $g "$(Label "ORDER"): $($json.receipt.order)" $x0 ($py + 438) 18
-  Draw-Text $g "$(Label "PERIOD"): $($json.period)" $x0 ($py + 468) 18
-  Draw-Text $g "$(Label "OUTPUT TIME"):" $x0 ($py + 498) 18
+  Draw-Centered $g ([string]$json.persona.secondary) $px ($py + 354) $pw 21
+  Draw-Text $g "ORDER: $($json.receipt.order)" $x0 ($py + 438) 18
+  Draw-Text $g "PERIOD: $($json.period)" $x0 ($py + 468) 18
+  Draw-Text $g "OUTPUT TIME:" $x0 ($py + 498) 18
   Draw-OutputTicket $g ($px + 318) ($py + 446)
   Draw-DotRule $g $x0 ($py + 552) ($pw - 80)
   $y = $py + 594
-  Dotted-Row $g (Label "THREADS") ([string]$json.statistics.threads) $x0 $y ($pw - 80) 19; $y += 28
-  Dotted-Row $g (Label "TURNS") ([string]$json.statistics.turns) $x0 $y ($pw - 80) 19; $y += 28
-  Dotted-Row $g (Label "TOOLS") ([string]$json.statistics.tool_calls) $x0 $y ($pw - 80) 19; $y += 28
-  Dotted-Row $g (Label "COMMANDS") ([string]$json.statistics.command_runs) $x0 $y ($pw - 80) 19; $y += 28
-  $tokenLabel = "TOKEN"
-  if ($json.statistics.PSObject.Properties.Name -contains "token_display_label") {
-    $tokenLabel = [string]$json.statistics.token_display_label
-  }
-  Dotted-Row $g (Label $tokenLabel) ([string]$json.statistics.tokens_total) $x0 $y ($pw - 80) 19; $y += 28
-  Dotted-Row $g (Label "COVERAGE") ("$($json.statistics.coverage_score)%") $x0 $y ($pw - 80) 19
+  Dotted-Row $g "THREADS" ([string]$json.statistics.threads) $x0 $y ($pw - 80) 19; $y += 28
+  Dotted-Row $g "TURNS" ([string]$json.statistics.turns) $x0 $y ($pw - 80) 19; $y += 28
+  Dotted-Row $g "TOOLS" ([string]$json.statistics.tool_calls) $x0 $y ($pw - 80) 19; $y += 28
+  Dotted-Row $g "COMMANDS" ([string]$json.statistics.command_runs) $x0 $y ($pw - 80) 19; $y += 28
+  Dotted-Row $g "TOKEN" ([string]$json.statistics.tokens_total) $x0 $y ($pw - 80) 19; $y += 28
+  Dotted-Row $g "COVERAGE" ("$($json.statistics.coverage_score)%") $x0 $y ($pw - 80) 19
   $y += 28
   $illusTop = $y + 34
   $illusH = if ($full) { 900 } else { 720 }
   Draw-ProcessedIllustration $g ($px + 42) $illusTop ($pw - 84) $illusH
   $y = $illusTop + $illusH + 36
   Draw-DotRule $g $x0 $y ($pw - 80); $y += 34
-  Draw-Text $g $(if (Is-Cn) { "核心能力" } else { "CORE CAPABILITIES" }) $x0 $y 22 $script:Ink "Bold"; $y += 36
+  Draw-Text $g "CORE CAPABILITIES" $x0 $y 22 $script:Ink "Bold"; $y += 36
   foreach ($name in @("EXPLORATION","EXECUTION","AUTOMATION","ENDURANCE","ITERATION","SYSTEMS","CONTROL","VERIFICATION")) {
-    Dotted-Row $g (Label $name) ("$(Dim-Value $name)%") $x0 $y ($pw - 80) 16
+    Dotted-Row $g $name ("$(Dim-Value $name)%") $x0 $y ($pw - 80) 16
     $y += 22
   }
   Draw-DotRule $g $x0 ($y + 8) ($pw - 80); $y += 36
-  Draw-Text $g $(if (Is-Cn) { "主要活动信号" } else { "TOP ACTIVITY SIGNALS" }) $x0 $y 22 $script:Ink "Bold"; $y += 34
-  Dotted-Row $g (Label "COMMAND RUNS") ([string]$json.statistics.command_runs) $x0 $y ($pw - 80) 16; $y += 22
-  Dotted-Row $g (Label "TOOL CALLS") ([string]$json.statistics.tool_calls) $x0 $y ($pw - 80) 16; $y += 22
+  Draw-Text $g "TOP ACTIVITY SIGNALS" $x0 $y 22 $script:Ink "Bold"; $y += 34
+  Dotted-Row $g "COMMAND RUNS" ([string]$json.statistics.command_runs) $x0 $y ($pw - 80) 16; $y += 22
+  Dotted-Row $g "TOOL CALLS" ([string]$json.statistics.tool_calls) $x0 $y ($pw - 80) 16; $y += 22
   $used = 0
   foreach ($prop in ($json.categories.PSObject.Properties | Select-Object -First $layout.activityRows)) {
-    Dotted-Row $g (Label ($prop.Name.ToUpper())) ([string]$prop.Value) $x0 $y ($pw - 80) 15
+    Dotted-Row $g ($prop.Name.ToUpper()) ([string]$prop.Value) $x0 $y ($pw - 80) 15
     $y += 21
     $used += 1
   }
   Draw-DotRule $g $x0 ($y + 8) ($pw - 80); $y += 36
-  Draw-Text $g $(if (Is-Cn) { "记录详情" } else { "RECORD DETAILS" }) $x0 $y 22 $script:Ink "Bold"; $y += 34
-  Dotted-Row $g (Label "SOURCE") ([string]$json.statistics.source_grade) $x0 $y ($pw - 80) 15; $y += 20
-  if ($json.statistics.PSObject.Properties.Name -contains "token_coverage_label") {
-    Dotted-Row $g (Label "TOKEN COV") ([string]$json.statistics.token_coverage_label) $x0 $y ($pw - 80) 15; $y += 20
-  }
-  Dotted-Row $g (Label "PUBLIC SAFE") $(if (Is-Cn) { "是" } else { "YES" }) $x0 $y ($pw - 80) 15; $y += 20
-  Dotted-Row $g (Label "CONFIDENCE") (Value-Text ([string]$json.persona.confidence)) $x0 $y ($pw - 80) 15; $y += 20
-  Dotted-Row $g (Label "OUTPUT TIME") ([string]$json.generated_at_local) $x0 $y ($pw - 80) 15; $y += 26
-  Draw-Text $g $(if (Is-Cn) { "注：所有标识仅属于本地记录。" } else { "NOTE: All identifiers are local to this record." }) $x0 $y 14; $y += 19
-  Draw-Text $g $(if (Is-Cn) { "不外传。无个人数据。" } else { "No external transmission. No personal data." }) $x0 $y 14; $y += 35
-  Dotted-Row $g (Label "TOTAL") (Label "LOCAL RECORD") $x0 $y ($pw - 80) 22; $y += 44
+  Draw-Text $g "RECORD DETAILS" $x0 $y 22 $script:Ink "Bold"; $y += 34
+  Dotted-Row $g "SOURCE" ([string]$json.statistics.source_grade) $x0 $y ($pw - 80) 15; $y += 20
+  Dotted-Row $g "PUBLIC SAFE" "YES" $x0 $y ($pw - 80) 15; $y += 20
+  Dotted-Row $g "CONFIDENCE" ([string]$json.persona.confidence) $x0 $y ($pw - 80) 15; $y += 20
+  Dotted-Row $g "OUTPUT TIME" ([string]$json.generated_at_local) $x0 $y ($pw - 80) 15; $y += 26
+  Draw-Text $g "NOTE: All identifiers are local to this record." $x0 $y 14; $y += 19
+  Draw-Text $g "No external transmission. No personal data." $x0 $y 14; $y += 35
+  Dotted-Row $g "TOTAL" "LOCAL RECORD" $x0 $y ($pw - 80) 22; $y += 44
   Draw-Barcode $g $x0 $y ($pw - 80) 68 ([string]$json.receipt.order); $y += 88
-  Draw-Centered $g $(if (Is-Cn) { "*** 副本 ***" } else { "*** DUPLICATE COPY ***" }) $px $y $pw 22 $script:Ink "Bold"; $y += 29
-  Draw-Centered $g $(if (Is-Cn) { "请保留记录" } else { "KEEP FOR YOUR RECORDS" }) $px $y $pw 16; $y += 22
-  Draw-Centered $g $(if (Is-Cn) { "所有记录均保存在本地 Codex。" } else { "All records are local to Codex." }) $px $y $pw 15; $y += 20
-  Draw-Centered $g $(if (Is-Cn) { "仅在可信场景分享。" } else { "Share only with trust." }) $px $y $pw 15
+  Draw-Centered $g "*** DUPLICATE COPY ***" $px $y $pw 22 $script:Ink "Bold"; $y += 29
+  Draw-Centered $g "KEEP FOR YOUR RECORDS" $px $y $pw 16; $y += 22
+  Draw-Centered $g "All records are local to Codex." $px $y $pw 15; $y += 20
+  Draw-Centered $g "Share only with trust." $px $y $pw 15
   Save-Png $bmp $g $path
 }
 
@@ -572,25 +485,19 @@ function Write-VisualCheckReport([int]$shareW, [int]$shareH) {
     }
   }
   $report = [ordered]@{
-    schema = "codex-receipt.visual-check.v5"
+    schema = "codex-receipt.visual-check.v3"
     deterministic_full_receipt = $true
-    receipt_contract = "receipt-html-texture-v1"
-    illustration_contract = "ai-pixel-persona-simple-v4"
-    language = if ($json.PSObject.Properties.Name -contains "language") { [string]$json.language } else { "en" }
-    background_strategy = "powershell_texture_skin_fallback"
-    renderer = "powershell-gdi-fallback"
+    receipt_contract = "receipt-skin-9slice-v1"
+    illustration_contract = "ai-pixel-persona-v3"
+    background_strategy = "nine_slice_template_skin"
     share_size = "$($shareW)x$($shareH)"
-    persona_illustration_source = if ($json.PSObject.Properties.Name -contains "persona_illustration_source") { [string]$json.persona_illustration_source } else { "unknown" }
-    ai_illustration_supplied = ($json.PSObject.Properties.Name -contains "persona_illustration_asset") -and [bool]$json.persona_illustration_asset
     full_receipt_image_generation = $false
     original_reference_images_embedded = $false
     template_skin_assets_present = $skinExists
-    stamp_texture_present = (Test-Path -LiteralPath $script:StampPath)
-    stamp_strategy = "stamp-output-time.png plus dynamic time"
     skin_manifest_raw_reference_images_embedded = if ($skinManifest -and ($skinManifest.PSObject.Properties.Name -contains "raw_reference_images_embedded")) { [bool]$skinManifest.raw_reference_images_embedded } else { $null }
-    skin_manifest_old_text_and_illustration_removed = if ($skinManifest -and ($skinManifest.PSObject.Properties.Name -contains "old_text_and_illustration_removed")) { [bool]$skinManifest.old_text_and_illustration_removed } else { $null }
+    skin_manifest_content_removed = if ($skinManifest -and ($skinManifest.PSObject.Properties.Name -contains "content_removed")) { [bool]$skinManifest.content_removed } else { $null }
+    skin_manifest_interior_source_pixels_kept = if ($skinManifest -and ($skinManifest.PSObject.Properties.Name -contains "interior_source_pixels_kept")) { [bool]$skinManifest.interior_source_pixels_kept } else { $null }
     checks = [ordered]@{
-      receipt_html_exists = (Test-Path -LiteralPath (Join-Path $OutputDir "receipt.html"))
       receipt_share_final_exists = (Test-Path -LiteralPath (Join-Path $OutputDir "receipt-share-final.png"))
       receipt_share_exists = (Test-Path -LiteralPath (Join-Path $OutputDir "receipt-share.png"))
       persona_illustration_processed_exists = (Test-Path -LiteralPath (Join-Path $OutputDir "persona-illustration-processed.png"))
@@ -612,6 +519,3 @@ try {
 } finally {
   $shareImg.Dispose()
 }
-
-
-

@@ -18,7 +18,7 @@ TOKEN_KEYS = {
     "total": ("total_tokens", "tokens_total"),
 }
 
-CACHE_VERSION = 4
+CACHE_VERSION = 3
 
 
 @dataclass
@@ -286,12 +286,8 @@ def summarize_file(path: Path) -> dict[str, Any]:
         "failed_turns": sorted(failed_turns),
         "interrupted_turns": sorted(interrupted_turns),
         "token_usage": usage.as_stats(),
-        "exact_token_usage": exact_usage.as_stats(),
-        "cumulative_token_usage": delta_usage.as_stats(),
         "token_source_grade": source,
         "turns_with_tokens": len(exact_by_turn) if not exact_usage.is_empty() else len(cumulative_by_thread),
-        "exact_turns_with_tokens": len(exact_by_turn),
-        "cumulative_threads_with_tokens": len(cumulative_by_thread),
         "cache_hit": False,
     }
 
@@ -341,8 +337,6 @@ def aggregate_summaries(home: Path, files: list[Path], summaries: list[dict[str,
     failed: set[str] = set()
     interrupted: set[str] = set()
     token_usage = TokenUsage()
-    exact_token_usage = TokenUsage()
-    cumulative_token_usage = TokenUsage()
     categories: Counter[str] = Counter()
     hours: Counter[str] = Counter()
     weekdays: Counter[str] = Counter()
@@ -350,8 +344,6 @@ def aggregate_summaries(home: Path, files: list[Path], summaries: list[dict[str,
     parsed_lines = 0
     failed_lines = 0
     turns_with_tokens = 0
-    exact_turns_with_tokens = 0
-    cumulative_threads_with_tokens = 0
     tool_calls = 0
     command_runs = 0
     file_modifications = 0
@@ -375,10 +367,6 @@ def aggregate_summaries(home: Path, files: list[Path], summaries: list[dict[str,
         file_modifications += int(summary.get("file_modifications") or 0)
         turns_with_tokens += int(summary.get("turns_with_tokens") or 0)
         token_usage.add(TokenUsage.from_mapping(reverse_stat_keys(summary.get("token_usage") or {})))
-        exact_token_usage.add(TokenUsage.from_mapping(reverse_stat_keys(summary.get("exact_token_usage") or {})))
-        cumulative_token_usage.add(TokenUsage.from_mapping(reverse_stat_keys(summary.get("cumulative_token_usage") or {})))
-        exact_turns_with_tokens += int(summary.get("exact_turns_with_tokens") or 0)
-        cumulative_threads_with_tokens += int(summary.get("cumulative_threads_with_tokens") or 0)
         source_grades.append(str(summary.get("token_source_grade") or "E"))
 
     if not files:
@@ -399,17 +387,10 @@ def aggregate_summaries(home: Path, files: list[Path], summaries: list[dict[str,
         "source_grade": choose_source_grade(source_grades),
     }
     stats.update(token_usage.as_stats())
-    stats["tokens_observed_total"] = int(stats.get("tokens_total") or 0)
-    stats["tokens_exact_total"] = exact_token_usage.as_stats()["tokens_total"]
-    stats["tokens_cumulative_delta_total"] = cumulative_token_usage.as_stats()["tokens_total"]
-    stats["token_exact_turns"] = exact_turns_with_tokens
-    stats["token_cumulative_threads"] = cumulative_threads_with_tokens
-    stats["token_coverage_label"] = f"{turns_with_tokens}/{stats['turns']}"
     if stats["tokens_total"] <= 0 and parsed_lines:
         estimate_tokens(stats, warnings)
     else:
         normalize_tokens(stats, warnings)
-    annotate_token_display(stats)
     stats["coverage_score"] = coverage_score(parsed_lines, failed_lines, stats, turns_with_tokens)
 
     return {
@@ -461,7 +442,6 @@ def normalize_tokens(stats: dict[str, Any], warnings: list[str]) -> None:
     max_reasonable = turns * 200_000
     if total <= max_reasonable:
         return
-    stats["tokens_observed_total"] = total
     estimate_tokens(stats, warnings)
     warnings.append("Token fields looked cumulative after Turn-level dedupe; replaced with EST. visible-data estimate.")
 
@@ -469,7 +449,6 @@ def normalize_tokens(stats: dict[str, Any], warnings: list[str]) -> None:
 def estimate_tokens(stats: dict[str, Any], warnings: list[str]) -> None:
     turns = max(int(stats.get("turns") or 0), 1)
     estimated_total = turns * 6_000
-    stats["tokens_estimated_total"] = estimated_total
     stats["tokens_total"] = estimated_total
     stats["tokens_input"] = int(estimated_total * 0.44)
     stats["tokens_output"] = int(estimated_total * 0.18)
@@ -478,23 +457,6 @@ def estimate_tokens(stats: dict[str, Any], warnings: list[str]) -> None:
     stats["source_grade"] = "D"
     if not any("EST." in warning for warning in warnings):
         warnings.append("Token total is EST. because exact Turn token data was unavailable or inconsistent.")
-
-
-def annotate_token_display(stats: dict[str, Any]) -> None:
-    if int(stats.get("tokens_estimated_total") or 0):
-        stats["token_count_mode"] = "visible_estimate"
-        stats["token_display_label"] = "TOKEN EST."
-        return
-    grade = str(stats.get("source_grade") or "")
-    if grade == "B":
-        stats["token_count_mode"] = "exact_turn_usage"
-        stats["token_display_label"] = "TOKEN"
-    elif grade == "C":
-        stats["token_count_mode"] = "cumulative_delta"
-        stats["token_display_label"] = "TOKEN"
-    else:
-        stats["token_count_mode"] = "unavailable"
-        stats["token_display_label"] = "TOKEN"
 
 
 def coverage_score(parsed_lines: int, failed_lines: int, stats: dict[str, Any], turns_with_tokens: int) -> int:

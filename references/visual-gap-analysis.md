@@ -19,7 +19,6 @@
 - Final PNG must be a headless-browser screenshot of `receipt.html`.
 - The red ticket must use a distressed stamp texture, always read `OUTPUT TIME`, and use `generated_at_local`.
 - The persona illustration must follow the pixel contract: simple 1-bit or single-accent, low-resolution, hard-edged, non-photographic, no animal mapping, no full receipt text, no dense machinery or busy technical collage.
-- User-facing skill runs must not stop at a prompt file or placeholder receipt. The agent should generate the persona illustration asset immediately, then render the final receipt with that asset.
 
 ## Reject Output If
 
@@ -31,4 +30,3 @@
 - The output-time ticket uses a fictional expiry date.
 - The public-safe disclaimer is missing.
 - Any public output includes usernames, local paths, repository URLs, raw prompts, source code, secrets, or terminal raw output.
-- A normal user-facing run reports `ai_illustration_supplied: false` without a clearly stated image-generation blocker and explicit fallback acceptance.

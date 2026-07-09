@@ -88,15 +88,6 @@ ILLUSTRATION_STYLE_CONTRACT: dict[str, Any] = {
     ],
 }
 
-LANGUAGE_ALIASES = {
-    "en": "en",
-    "english": "en",
-    "zh": "zh-cn",
-    "zh-cn": "zh-cn",
-    "cn": "zh-cn",
-    "@cn": "zh-cn",
-}
-
 
 def local_now() -> datetime:
     return datetime.now().astimezone()
@@ -137,8 +128,51 @@ def escape_html(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
+def redacted_public_text(value: Any) -> str:
+    text = str(value)
+    home = str(Path.home())
+    if home:
+        text = text.replace(home, "[USER_HOME]")
+    return text
+
+
+def public_report_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    coverage = dict(payload.get("coverage") or {})
+    data_sources = dict(coverage.get("data_sources") or {})
+    coverage["data_sources"] = {
+        "sessions": data_sources.get("sessions", "unknown"),
+        "history_jsonl": data_sources.get("history_jsonl", "unknown"),
+    }
+    coverage["warnings"] = [redacted_public_text(item) for item in coverage.get("warnings") or []]
+
+    performance = dict(payload.get("performance") or {})
+    performance.pop("cache_path", None)
+
+    return {
+        "schema": payload.get("schema"),
+        "mode": payload.get("mode"),
+        "period": payload.get("period"),
+        "generated_at_iso": payload.get("generated_at_iso"),
+        "generated_at_local": payload.get("generated_at_local"),
+        "generated_at_ticket": payload.get("generated_at_ticket"),
+        "receipt": payload.get("receipt"),
+        "statistics": payload.get("statistics"),
+        "persona": payload.get("persona"),
+        "rhythm": payload.get("rhythm"),
+        "categories": payload.get("categories"),
+        "easter_eggs": payload.get("easter_eggs"),
+        "coverage": coverage,
+        "privacy": payload.get("privacy"),
+        "performance": performance,
+        "character_dna": payload.get("character_dna"),
+        "receipt_layout_contract": payload.get("receipt_layout_contract"),
+        "illustration_style_contract": payload.get("illustration_style_contract"),
+    }
+
+
 def write_html(path: Path, title: str, payload: dict[str, Any], public: bool) -> None:
-    body = escape_html(json.dumps(payload, ensure_ascii=False, indent=2))
+    report_payload = public_report_payload(payload) if public else payload
+    body = escape_html(json.dumps(report_payload, ensure_ascii=False, indent=2))
     privacy = "PUBLIC SAFE VIEW" if public else "PRIVATE LOCAL VIEW"
     html = f"""<!doctype html>
 <html lang="en">
@@ -170,7 +204,6 @@ def demo_payload(generated_at: datetime) -> dict[str, Any]:
     return {
         "schema": "codex-receipt.v1",
         "mode": "demo",
-        "language": "en",
         "period": "all",
         "generated_at_iso": generated_at.isoformat(),
         "generated_at_local": generated_local,
@@ -198,15 +231,6 @@ def demo_payload(generated_at: datetime) -> dict[str, Any]:
             "tokens_output": 12874401,
             "tokens_cached": 32781000,
             "tokens_reasoning": 4313733,
-            "tokens_observed_total": 88391744,
-            "tokens_exact_total": 88391744,
-            "tokens_cumulative_delta_total": 0,
-            "tokens_estimated_total": 0,
-            "token_exact_turns": 7193,
-            "token_cumulative_threads": 0,
-            "token_coverage_label": "7193/7193",
-            "token_count_mode": "exact_turn_usage",
-            "token_display_label": "TOKEN",
             "coverage_score": 94,
             "source_grade": "A-",
         },
@@ -269,19 +293,6 @@ def demo_payload(generated_at: datetime) -> dict[str, Any]:
         },
         "performance": {},
     }
-
-
-def normalize_language(value: str | None) -> str:
-    if not value:
-        return "en"
-    key = value.strip().lower()
-    if key not in LANGUAGE_ALIASES:
-        raise SystemExit(f"Invalid language: {value!r}. Use en or zh-cn.")
-    return LANGUAGE_ALIASES[key]
-
-
-def apply_language(payload: dict[str, Any], language: str | None) -> None:
-    payload["language"] = normalize_language(language)
 
 
 def recursive_token_sum(value: Any, buckets: dict[str, int]) -> None:
@@ -783,7 +794,7 @@ def specimen_prompt(payload: dict[str, Any]) -> str:
 def receipt_image_prompt(payload: dict[str, Any]) -> str:
     return (
         "DEPRECATED: The full CODEX RECEIPT is rendered deterministically by code. "
-        "Use persona-illustration-prompt.txt only for the required pixel persona illustration asset."
+        "Use persona-illustration-prompt.txt only for the optional pixel persona illustration asset."
     )
 
 
@@ -825,7 +836,6 @@ def manifest(payload: dict[str, Any], out_dir: Path) -> dict[str, Any]:
         "visual_contract": RECEIPT_LAYOUT_CONTRACT["version"],
         "illustration_contract": ILLUSTRATION_STYLE_CONTRACT["version"],
         "mode": payload["mode"],
-        "language": payload.get("language", "en"),
         "period": payload["period"],
         "generated_at_iso": payload["generated_at_iso"],
         "generated_at_local": payload["generated_at_local"],
@@ -838,34 +848,14 @@ def attach_persona_illustration(payload: dict[str, Any], out_dir: Path, illustra
     if not illustration_asset:
         payload.pop("persona_illustration_asset", None)
         payload.pop("specimen_asset", None)
-        payload["persona_illustration_source"] = "development-placeholder"
         return
     asset = Path(illustration_asset).expanduser()
     if asset.exists():
         resolved = str(asset.resolve())
         payload["persona_illustration_asset"] = resolved
         payload["specimen_asset"] = resolved
-        payload["persona_illustration_source"] = "supplied-ai-asset"
     else:
         raise FileNotFoundError(f"Persona illustration asset not found: {asset}")
-
-
-def write_prepared_outputs(payload: dict[str, Any], out_dir: Path) -> None:
-    out_dir.mkdir(parents=True, exist_ok=True)
-    attach_visual_payload(payload)
-    payload["persona_illustration_source"] = "pending-ai-generation"
-    safe_write_json(out_dir / "receipt-data.json", payload)
-    safe_write_json(out_dir / "statistics.json", payload["statistics"])
-    safe_write_json(out_dir / "persona.json", payload["persona"])
-    safe_write_json(out_dir / "character-dna.json", payload["character_dna"])
-    safe_write_json(out_dir / "visual-brief.json", payload["character_dna"])
-    safe_write_json(out_dir / "receipt-layout-contract.json", RECEIPT_LAYOUT_CONTRACT)
-    safe_write_json(out_dir / "illustration-style-contract.json", ILLUSTRATION_STYLE_CONTRACT)
-    safe_write_json(out_dir / "coverage-report.json", payload["coverage"])
-    safe_write_json(out_dir / "privacy-report.json", payload["privacy"])
-    safe_write_json(out_dir / "performance-report.json", payload["performance"])
-    (out_dir / "persona-illustration-prompt.txt").write_text(payload["persona_illustration_prompt"], encoding="utf-8")
-    (out_dir / "specimen-prompt.txt").write_text(payload["specimen_prompt"], encoding="utf-8")
 
 
 def write_outputs(payload: dict[str, Any], out_dir: Path, persona_illustration: str | None = None) -> None:
@@ -903,7 +893,6 @@ def write_outputs(payload: dict[str, Any], out_dir: Path, persona_illustration: 
 
 def cmd_demo(args: argparse.Namespace) -> int:
     payload = build_payload("demo", "all", parse_generated_at(args.generated_at))
-    apply_language(payload, getattr(args, "language", None))
     write_outputs(payload, Path(args.out), resolve_persona_illustration_arg(args))
     print(f"Generated CODEX RECEIPT demo at {Path(args.out).resolve()}")
     print(f"Output time ticket: {payload['generated_at_ticket']}")
@@ -915,7 +904,6 @@ def cmd_demo(args: argparse.Namespace) -> int:
 def cmd_generate(args: argparse.Namespace) -> int:
     cache_path = Path(args.out) / ".cache" / "codex-receipt.sqlite"
     payload = build_payload(args.mode, args.period, parse_generated_at(args.generated_at), cache_path)
-    apply_language(payload, getattr(args, "language", None))
     write_outputs(payload, Path(args.out), resolve_persona_illustration_arg(args))
     print(f"Generated CODEX RECEIPT at {Path(args.out).resolve()}")
     print(f"Coverage: {payload['coverage']['coverage_score']}%")
@@ -925,22 +913,9 @@ def cmd_generate(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_prepare(args: argparse.Namespace) -> int:
-    cache_path = Path(args.out) / ".cache" / "codex-receipt.sqlite"
-    payload = build_payload(args.mode, args.period, parse_generated_at(args.generated_at), cache_path)
-    apply_language(payload, getattr(args, "language", None))
-    write_prepared_outputs(payload, Path(args.out))
-    print(f"Prepared CODEX RECEIPT data at {Path(args.out).resolve()}")
-    print(f"Persona illustration prompt: {(Path(args.out) / 'persona-illustration-prompt.txt').resolve()}")
-    print("Next: generate the persona illustration asset, then run render with --persona-illustration.")
-    return 0
-
-
 def cmd_render(args: argparse.Namespace) -> int:
     payload_path = Path(args.payload) if args.payload else Path(args.out) / "receipt-data.json"
     payload = json.loads(payload_path.read_text(encoding="utf-8"))
-    if getattr(args, "language", None):
-        apply_language(payload, args.language)
     write_outputs(payload, Path(args.out), resolve_persona_illustration_arg(args))
     print(f"Re-rendered CODEX RECEIPT at {Path(args.out).resolve()}")
     print(f"Persona illustration asset: {payload.get('persona_illustration_asset', 'procedural fallback')}")
@@ -982,20 +957,6 @@ def resolve_persona_illustration_arg(args: argparse.Namespace) -> str | None:
     return getattr(args, "persona_illustration", None) or getattr(args, "specimen_asset", None)
 
 
-def add_language_arg(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--language", default="en", choices=["en", "zh-cn"], help="Receipt language; English is the default.")
-
-
-def add_cn_common_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--out", default=str(default_output_dir()))
-    parser.add_argument("--period", default="all")
-    parser.add_argument("--mode", default="standard", choices=["standard", "deep", "demo"])
-    parser.add_argument("--generated-at", default=None)
-    parser.add_argument("--persona-illustration", default=None, help="Path to this run's persona-specific illustration PNG.")
-    parser.add_argument("--specimen-asset", default=None, help="Deprecated alias for --persona-illustration.")
-    parser.set_defaults(func=cmd_generate, language="zh-cn")
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="codex_receipt", description="Generate deterministic CODEX RECEIPT artifacts.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1003,7 +964,6 @@ def build_parser() -> argparse.ArgumentParser:
     demo = sub.add_parser("demo", help="Generate a fixed visual-regression demo.")
     demo.add_argument("--out", default=str(default_output_dir()))
     demo.add_argument("--generated-at", default=None, help="Override output time ticket, e.g. 2026-07-07 13:40")
-    add_language_arg(demo)
     demo.add_argument("--persona-illustration", default=None, help="Path to this run's persona-specific illustration PNG.")
     demo.add_argument("--specimen-asset", default=None, help="Deprecated alias for --persona-illustration.")
     demo.set_defaults(func=cmd_demo)
@@ -1013,32 +973,16 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--period", default="all")
     gen.add_argument("--mode", default="standard", choices=["standard", "deep", "demo"])
     gen.add_argument("--generated-at", default=None)
-    add_language_arg(gen)
     gen.add_argument("--persona-illustration", default=None, help="Path to this run's persona-specific illustration PNG.")
     gen.add_argument("--specimen-asset", default=None, help="Deprecated alias for --persona-illustration.")
     gen.set_defaults(func=cmd_generate)
 
-    prep = sub.add_parser("prepare", help="Prepare data and the persona-illustration prompt without rendering a placeholder.")
-    prep.add_argument("--out", default=str(default_output_dir()))
-    prep.add_argument("--period", default="all")
-    prep.add_argument("--mode", default="standard", choices=["standard", "deep", "demo"])
-    prep.add_argument("--generated-at", default=None)
-    add_language_arg(prep)
-    prep.set_defaults(func=cmd_prepare)
-
     render = sub.add_parser("render", help="Re-render existing receipt-data.json, optionally with a persona illustration asset.")
     render.add_argument("--out", default=str(default_output_dir()))
     render.add_argument("--payload", default=None, help="Defaults to <out>/receipt-data.json.")
-    render.add_argument("--language", default=None, choices=["en", "zh-cn"], help="Override receipt language for this render.")
     render.add_argument("--persona-illustration", default=None, help="Path to this run's persona-specific illustration PNG.")
     render.add_argument("--specimen-asset", default=None, help="Deprecated alias for --persona-illustration.")
     render.set_defaults(func=cmd_render)
-
-    cn = sub.add_parser("cn", help="Generate a Chinese CODEX RECEIPT; English remains the default.")
-    add_cn_common_args(cn)
-
-    cn_alias = sub.add_parser("@cn", help="Alias for cn.")
-    add_cn_common_args(cn_alias)
 
     cov = sub.add_parser("inspect-coverage", help="Inspect local data coverage.")
     cov.set_defaults(func=cmd_inspect_coverage)
